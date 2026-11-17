@@ -1,4 +1,5 @@
 import pytest
+import requests
 from src.common.api_requests import fetch_json
 
 
@@ -21,6 +22,8 @@ class FakeAPI:
     def get(self, url, timeout):
         code = self.status_codes[self.calls]
         self.calls += 1
+        if code == "timeout":
+            raise requests.exceptions.Timeout("Read timed out")
         if code == 200:
             return FakeResponse(200, '{"ok": true}')
         return FakeResponse(code)
@@ -52,3 +55,15 @@ def test_fails_after_max_retries():
         fetch_json("url", get=api.get, sleep=no_wait, max_retries=3)
 
     assert api.calls == 3
+
+
+def test_retries_after_timeout():
+    # Preparar: la conexión se corta la primera vez y la segunda responde bien
+    api = FakeAPI(status_codes=["timeout", 200])
+
+    # Ejecutar
+    result = fetch_json("url", get=api.get, sleep=no_wait)
+
+    # Verificar: devolvió el JSON y llamó a la API dos veces
+    assert result == '{"ok": true}'
+    assert api.calls == 2
