@@ -1,7 +1,5 @@
 # Databricks notebook source
 
-# COMMAND ----------
-
 dbutils.widgets.text("catalog", "vuelos_dev")
 dbutils.widgets.text("year", "2015")
 dbutils.widgets.text("country_code", "US")

@@ -1,7 +1,5 @@
 # Databricks notebook source
 
-# COMMAND ----------
-
 dbutils.widgets.text("catalog", "vuelos_dev")
 dbutils.widgets.text("landing_path", "abfss://landing@tpivuelos.dfs.core.windows.net/kaggle/flight_delays_2015")
 dbutils.widgets.text("batch_id", "manual")

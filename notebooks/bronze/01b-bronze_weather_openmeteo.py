@@ -1,7 +1,5 @@
 # Databricks notebook source
 
-# COMMAND ----------
-
 dbutils.widgets.text("catalog", "vuelos_dev")
 dbutils.widgets.text("start_date", "2015-01-01")
 dbutils.widgets.text("end_date", "2015-12-31")
