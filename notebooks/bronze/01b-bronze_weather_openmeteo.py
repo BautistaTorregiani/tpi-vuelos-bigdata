@@ -1,6 +1,4 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC # Bronze - Clima de Open-Meteo
 
 # COMMAND ----------
 

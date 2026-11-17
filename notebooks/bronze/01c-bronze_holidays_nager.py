@@ -1,6 +1,4 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC # Bronze - Feriados de Nager.Date
 
 # COMMAND ----------
 

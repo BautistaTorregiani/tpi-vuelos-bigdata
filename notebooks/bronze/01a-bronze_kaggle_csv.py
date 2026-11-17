@@ -1,6 +1,4 @@
 # Databricks notebook source
-# MAGIC %md
-# MAGIC # Bronze - CSV de Kaggle
 
 # COMMAND ----------
 
