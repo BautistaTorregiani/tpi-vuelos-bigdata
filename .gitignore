@@ -218,3 +218,13 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- TPI Vuelos ---
+scratch/
+*.csv
+*.parquet
+*.zip
+spark-warehouse/
+metastore_db/
+derby.log
+.databricks/
