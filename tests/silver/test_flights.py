@@ -13,36 +13,7 @@ from src.silver.flights import (
     add_arrival_local,
 )
 
-# Tipos de datos
-
-def make_bronze_flight(spark, **values):
-    """Crea una fila de Bronze de prueba: todas las columnas vacías salvo las que indiquemos."""
-    row = dict.fromkeys(FLIGHT_COLUMNS)   # todas las columnas, vacías
-    row.update(values)                     # completamos las que pasamos
-    schema = ", ".join(f"{name} string" for name in FLIGHT_COLUMNS)
-    return spark.createDataFrame([row], schema)
-
-
-def test_converts_types_and_renames(spark):
-    df = make_bronze_flight(spark, DEPARTURE_DELAY="-11", DISTANCE="1448",
-                            CANCELLED="0", AIRLINE="AS")
-
-    row = cast_flight_columns(df).collect()[0]
-
-    assert row["departure_delay"] == -11        # texto "-11" → número -11
-    assert row["distance"] == 1448
-    assert row["is_cancelled"] is False         
-    assert row["airline"] == "AS"               
-
-
-def test_invalid_value_becomes_empty_instead_of_failing(spark):
-    df = make_bronze_flight(spark, DEPARTURE_DELAY="abc")
-
-    row = cast_flight_columns(df).collect()[0]
-
-    assert row["departure_delay"] is None       # no se pudo convertir → vacío, sin error
-
-#  Ayudas para armar datos de prueba 
+# Ayudas para armar datos de prueba
 
 def make_bronze_flight(spark, **values):
     """Crea una fila de Bronze de prueba: todas las columnas vacías salvo las que indiquemos."""
@@ -57,6 +28,28 @@ def make_departure(spark, hhmm, delay):
     return spark.createDataFrame(
         [(date(2015, 1, 1), hhmm, delay)],
         "flight_date date, departure_planned_hhmm string, departure_delay int")
+
+
+# Tipos de datos
+
+def test_converts_types_and_renames(spark):
+    df = make_bronze_flight(spark, DEPARTURE_DELAY="-11", DISTANCE="1448",
+                            CANCELLED="0", AIRLINE="AS")
+
+    row = cast_flight_columns(df).collect()[0]
+
+    assert row["departure_delay"] == -11        # texto "-11" → número -11
+    assert row["distance"] == 1448
+    assert row["is_cancelled"] is False
+    assert row["airline"] == "AS"
+
+
+def test_invalid_value_becomes_empty_instead_of_failing(spark):
+    df = make_bronze_flight(spark, DEPARTURE_DELAY="abc")
+
+    row = cast_flight_columns(df).collect()[0]
+
+    assert row["departure_delay"] is None       # no se pudo convertir → vacío, sin error
 
 # Fecha y horarios 
 

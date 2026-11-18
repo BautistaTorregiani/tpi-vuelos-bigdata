@@ -141,11 +141,10 @@ def add_arrival_utc(df):
     return df
 
 
-# Convierte una hora UTC a la hora local de la zona horaria de la columna indicada.
+
 def utc_to_local(column, timezone):
     """Convierte una hora UTC a la hora local de la zona indicada."""
-    as_timestamp = F.col(column).cast("timestamp")
-    return F.from_utc_timestamp(as_timestamp, F.col(timezone)).cast("timestamp_ntz")
+    return F.convert_timezone(F.lit("UTC"), F.col(timezone), F.col(column))
 
 
 # Agrega la llegada planeada y la real en la hora local del aeropuerto de destino.
