@@ -126,3 +126,13 @@ def add_departure_utc(df):
     df = df.withColumn("departure_real_utc",
                        local_to_utc("departure_real_local", "origin_timezone"))
     return df
+
+
+# Calcula la llegada planeada y la real en UTC, sumando minutos a la salida.
+def add_arrival_utc(df):
+    """Calcula la llegada planeada y la real en UTC, sumando minutos a la salida."""
+    df = df.withColumn("arrival_planned_utc",
+                       F.expr("departure_planned_utc + planned_duration * INTERVAL 1 MINUTE"))
+    df = df.withColumn("arrival_real_utc",
+                       F.expr("arrival_planned_utc + arrival_delay * INTERVAL 1 MINUTE"))
+    return df

@@ -9,6 +9,7 @@ from src.silver.flights import (
     translate_airport_codes,
     add_airport_timezones,
     add_departure_utc,
+    add_arrival_utc,
 )
 
 # Tipos de datos
@@ -145,3 +146,34 @@ def test_departure_to_utc_in_winter_and_summer(spark):
     assert winter["departure_planned_utc"] == datetime(2015, 1, 15, 19, 30)   # invierno: +5 h
     assert winter["departure_real_utc"] == datetime(2015, 1, 15, 19, 40)
     assert summer["departure_planned_utc"] == datetime(2015, 7, 15, 18, 30)   # verano: +4 h
+
+
+# Crea un vuelo de prueba con lo justo para calcular la llegada.
+def make_arrival(spark, departure_utc, duration, arrival_delay):
+    """Crea un vuelo de prueba con lo justo para calcular la llegada."""
+    schema = "departure_planned_utc timestamp_ntz, planned_duration int, arrival_delay int"
+    return spark.createDataFrame([(departure_utc, duration, arrival_delay)], schema)
+
+
+# La llegada planeada es la salida más la duración, y la real suma además el retraso.
+def test_arrival_is_departure_plus_duration(spark):
+    # Vuelo de Alaska: sale 09:05 UTC, dura 205 minutos, llega 22 minutos antes
+    df = make_arrival(spark, datetime(2015, 1, 1, 9, 5), duration=205, arrival_delay=-22)
+    row = add_arrival_utc(df).first()
+    assert row["arrival_planned_utc"] == datetime(2015, 1, 1, 12, 30)
+    assert row["arrival_real_utc"] == datetime(2015, 1, 1, 12, 8)
+
+
+# Si la duración cruza la medianoche, la llegada cae al día siguiente.
+def test_arrival_can_be_next_day(spark):
+    df = make_arrival(spark, datetime(2015, 1, 1, 23, 0), duration=120, arrival_delay=0)
+    row = add_arrival_utc(df).first()
+    assert row["arrival_planned_utc"] == datetime(2015, 1, 2, 1, 0)
+
+
+# Un vuelo cancelado (sin retraso de llegada) no tiene llegada real.
+def test_cancelled_flight_has_no_real_arrival(spark):
+    df = make_arrival(spark, datetime(2015, 1, 1, 10, 0), duration=120, arrival_delay=None)
+    row = add_arrival_utc(df).first()
+    assert row["arrival_planned_utc"] == datetime(2015, 1, 1, 12, 0)
+    assert row["arrival_real_utc"] is None
