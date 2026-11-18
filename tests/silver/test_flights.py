@@ -9,6 +9,8 @@ from src.silver.flights import (
     translate_airport_codes,
     add_airport_timezones,
     add_departure_utc,
+    add_arrival_utc,
+    add_arrival_local,
 )
 
 # Tipos de datos
@@ -149,3 +151,60 @@ def test_departure_to_utc_in_winter_and_summer(spark):
     assert summer["departure_real_utc"] == datetime(2015, 7, 15, 18, 40)
     assert winter["departure_hour_utc"] == datetime(2015, 1, 15, 19, 0)    # 19:30 → 19:00
     assert summer["departure_hour_utc"] == datetime(2015, 7, 15, 18, 0)    # 18:30 → 18:00
+
+
+# Crea un vuelo de prueba con lo justo para calcular la llegada.
+def make_arrival(spark, departure_utc, duration, arrival_delay):
+    """Crea un vuelo de prueba con lo justo para calcular la llegada."""
+    schema = "departure_planned_utc timestamp_ntz, planned_duration int, arrival_delay int"
+    return spark.createDataFrame([(departure_utc, duration, arrival_delay)], schema)
+
+
+# La llegada planeada es la salida más la duración, y la real suma además el retraso.
+def test_arrival_is_departure_plus_duration(spark):
+    # Vuelo de Alaska: sale 09:05 UTC, dura 205 minutos, llega 22 minutos antes
+    df = make_arrival(spark, datetime(2015, 1, 1, 9, 5), duration=205, arrival_delay=-22)
+    row = add_arrival_utc(df).first()
+    assert row["arrival_planned_utc"] == datetime(2015, 1, 1, 12, 30)
+    assert row["arrival_real_utc"] == datetime(2015, 1, 1, 12, 8)
+
+
+# Si la duración cruza la medianoche, la llegada cae al día siguiente.
+def test_arrival_can_be_next_day(spark):
+    df = make_arrival(spark, datetime(2015, 1, 1, 23, 0), duration=120, arrival_delay=0)
+    row = add_arrival_utc(df).first()
+    assert row["arrival_planned_utc"] == datetime(2015, 1, 2, 1, 0)
+
+
+# Un vuelo cancelado (sin retraso de llegada) no tiene llegada real.
+def test_cancelled_flight_has_no_real_arrival(spark):
+    df = make_arrival(spark, datetime(2015, 1, 1, 10, 0), duration=120, arrival_delay=None)
+    row = add_arrival_utc(df).first()
+    assert row["arrival_planned_utc"] == datetime(2015, 1, 1, 12, 0)
+    assert row["arrival_real_utc"] is None
+
+
+# Crea un vuelo de prueba con las llegadas en UTC y la zona horaria del destino.
+def make_arrival_utc(spark, planned_utc, real_utc, destination_tz):
+    """Crea un vuelo de prueba con las llegadas en UTC y la zona del destino."""
+    schema = "arrival_planned_utc timestamp_ntz, arrival_real_utc timestamp_ntz, destination_timezone string"
+    return spark.createDataFrame([(planned_utc, real_utc, destination_tz)], schema)
+
+
+# La llegada en UTC se convierte a la hora local del aeropuerto de destino.
+def test_arrival_to_local_time_of_destination(spark):
+    # Vuelo de Alaska: llega a Seattle 12:30 UTC (planeada) y 12:08 UTC (real)
+    df = make_arrival_utc(spark, datetime(2015, 1, 1, 12, 30), datetime(2015, 1, 1, 12, 8),
+                          "America/Los_Angeles")
+    row = add_arrival_local(df).first()
+    assert row["arrival_planned_local"] == datetime(2015, 1, 1, 4, 30)
+    assert row["arrival_real_local"] == datetime(2015, 1, 1, 4, 8)
+
+
+# Un vuelo cancelado (sin llegada real) no tiene llegada real en hora local.
+def test_cancelled_flight_has_no_local_real_arrival(spark):
+    df = make_arrival_utc(spark, datetime(2015, 1, 1, 12, 0), None, "America/Chicago")
+    row = add_arrival_local(df).first()
+    assert row["arrival_planned_local"] == datetime(2015, 1, 1, 6, 0)
+    assert row["arrival_real_local"] is None
+
