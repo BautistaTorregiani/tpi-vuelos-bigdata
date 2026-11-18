@@ -10,6 +10,7 @@ from src.silver.flights import (
     add_airport_timezones,
     add_departure_utc,
     add_arrival_utc,
+    add_arrival_local,
 )
 
 # Tipos de datos
@@ -177,3 +178,28 @@ def test_cancelled_flight_has_no_real_arrival(spark):
     row = add_arrival_utc(df).first()
     assert row["arrival_planned_utc"] == datetime(2015, 1, 1, 12, 0)
     assert row["arrival_real_utc"] is None
+
+
+# Crea un vuelo de prueba con las llegadas en UTC y la zona horaria del destino.
+def make_arrival_utc(spark, planned_utc, real_utc, destination_tz):
+    """Crea un vuelo de prueba con las llegadas en UTC y la zona del destino."""
+    schema = "arrival_planned_utc timestamp_ntz, arrival_real_utc timestamp_ntz, destination_timezone string"
+    return spark.createDataFrame([(planned_utc, real_utc, destination_tz)], schema)
+
+
+# La llegada en UTC se convierte a la hora local del aeropuerto de destino.
+def test_arrival_to_local_time_of_destination(spark):
+    # Vuelo de Alaska: llega a Seattle 12:30 UTC (planeada) y 12:08 UTC (real)
+    df = make_arrival_utc(spark, datetime(2015, 1, 1, 12, 30), datetime(2015, 1, 1, 12, 8),
+                          "America/Los_Angeles")
+    row = add_arrival_local(df).first()
+    assert row["arrival_planned_local"] == datetime(2015, 1, 1, 4, 30)
+    assert row["arrival_real_local"] == datetime(2015, 1, 1, 4, 8)
+
+
+# Un vuelo cancelado (sin llegada real) no tiene llegada real en hora local.
+def test_cancelled_flight_has_no_local_real_arrival(spark):
+    df = make_arrival_utc(spark, datetime(2015, 1, 1, 12, 0), None, "America/Chicago")
+    row = add_arrival_local(df).first()
+    assert row["arrival_planned_local"] == datetime(2015, 1, 1, 6, 0)
+    assert row["arrival_real_local"] is None

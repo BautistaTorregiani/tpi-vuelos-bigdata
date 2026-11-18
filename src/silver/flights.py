@@ -136,3 +136,20 @@ def add_arrival_utc(df):
     df = df.withColumn("arrival_real_utc",
                        F.expr("arrival_planned_utc + arrival_delay * INTERVAL 1 MINUTE"))
     return df
+
+
+# Convierte una hora UTC a la hora local de la zona horaria de la columna indicada.
+def utc_to_local(column, timezone):
+    """Convierte una hora UTC a la hora local de la zona indicada."""
+    as_timestamp = F.col(column).cast("timestamp")
+    return F.from_utc_timestamp(as_timestamp, F.col(timezone)).cast("timestamp_ntz")
+
+
+# Agrega la llegada planeada y la real en la hora local del aeropuerto de destino.
+def add_arrival_local(df):
+    """Agrega la llegada planeada y la real en la hora local del destino."""
+    df = df.withColumn("arrival_planned_local",
+                       utc_to_local("arrival_planned_utc", "destination_timezone"))
+    df = df.withColumn("arrival_real_local",
+                       utc_to_local("arrival_real_utc", "destination_timezone"))
+    return df
