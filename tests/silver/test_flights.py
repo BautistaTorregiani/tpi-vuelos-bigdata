@@ -132,7 +132,8 @@ def test_timezones_are_added_for_origin_and_destination(spark):
     assert row["destination_timezone"] == "America/Los_Angeles"
 
 
-# La salida local se convierte a UTC respetando el horario de invierno (+5 h) y de verano (+4 h).
+# La salida local se convierte a UTC respetando el horario de invierno (+5 h) y de verano (+4 h),
+# y se lleva a la hora en punto para unir con el clima.
 def test_departure_to_utc_in_winter_and_summer(spark):
     schema = "departure_planned_local timestamp_ntz, departure_real_local timestamp_ntz, origin_timezone string"
     flights = spark.createDataFrame(
@@ -145,3 +146,6 @@ def test_departure_to_utc_in_winter_and_summer(spark):
     assert winter["departure_planned_utc"] == datetime(2015, 1, 15, 19, 30)   # invierno: +5 h
     assert winter["departure_real_utc"] == datetime(2015, 1, 15, 19, 40)
     assert summer["departure_planned_utc"] == datetime(2015, 7, 15, 18, 30)   # verano: +4 h
+    assert summer["departure_real_utc"] == datetime(2015, 7, 15, 18, 40)
+    assert winter["departure_hour_utc"] == datetime(2015, 1, 15, 19, 0)    # 19:30 → 19:00
+    assert summer["departure_hour_utc"] == datetime(2015, 7, 15, 18, 0)    # 18:30 → 18:00
