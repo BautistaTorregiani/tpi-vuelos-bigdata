@@ -111,3 +111,18 @@ def add_airport_timezones(df, airports):
                                   F.col("timezone").alias("destination_timezone"))
     df = df.join(origin, "origin_airport", "left")
     return df.join(destination, "destination_airport", "left")
+
+# Convierte una hora local a UTC según la zona horaria de la columna indicada.
+def local_to_utc(column, timezone):
+    """Convierte una hora local a UTC, según la zona horaria indicada."""
+    as_timestamp = F.col(column).cast("timestamp")
+    return F.to_utc_timestamp(as_timestamp, F.col(timezone)).cast("timestamp_ntz")
+
+# Agrega la salida planeada y la real en UTC, usando la zona horaria del aeropuerto de origen.
+def add_departure_utc(df):
+    """Agrega la salida planeada y la real en UTC, usando la zona del origen."""
+    df = df.withColumn("departure_planned_utc",
+                       local_to_utc("departure_planned_local", "origin_timezone"))
+    df = df.withColumn("departure_real_utc",
+                       local_to_utc("departure_real_local", "origin_timezone"))
+    return df

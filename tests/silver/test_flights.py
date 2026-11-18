@@ -7,7 +7,8 @@ from src.silver.flights import (
     add_departure_times,
     build_airport_code_mapping,
     translate_airport_codes,
-    add_airport_timezones
+    add_airport_timezones,
+    add_departure_utc,
 )
 
 # Tipos de datos
@@ -129,3 +130,18 @@ def test_timezones_are_added_for_origin_and_destination(spark):
     row = add_airport_timezones(flights, airports).first()
     assert row["origin_timezone"] == "America/Anchorage"
     assert row["destination_timezone"] == "America/Los_Angeles"
+
+
+# La salida local se convierte a UTC respetando el horario de invierno (+5 h) y de verano (+4 h).
+def test_departure_to_utc_in_winter_and_summer(spark):
+    schema = "departure_planned_local timestamp_ntz, departure_real_local timestamp_ntz, origin_timezone string"
+    flights = spark.createDataFrame(
+        [(datetime(2015, 1, 15, 14, 30), datetime(2015, 1, 15, 14, 40), "America/New_York"),
+         (datetime(2015, 7, 15, 14, 30), datetime(2015, 7, 15, 14, 40), "America/New_York")],
+        schema,
+    )
+    winter, summer = add_departure_utc(flights).collect()
+
+    assert winter["departure_planned_utc"] == datetime(2015, 1, 15, 19, 30)   # invierno: +5 h
+    assert winter["departure_real_utc"] == datetime(2015, 1, 15, 19, 40)
+    assert summer["departure_planned_utc"] == datetime(2015, 7, 15, 18, 30)   # verano: +4 h
