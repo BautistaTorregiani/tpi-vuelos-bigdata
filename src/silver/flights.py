@@ -101,3 +101,13 @@ def translate_airport_codes(df, mapping):
 
     # Buscar y reemplazar en las dos columnas
     return df.replace(translations, subset=["origin_airport", "destination_airport"])
+
+# Une la tabla de aeropuertos dos veces (origen y destino) para traer la zona horaria de cada uno.
+def add_airport_timezones(df, airports):
+    """Agrega la zona horaria del aeropuerto de origen y la del de destino."""
+    origin = airports.select(F.col("iata_code").alias("origin_airport"),
+                             F.col("timezone").alias("origin_timezone"))
+    destination = airports.select(F.col("iata_code").alias("destination_airport"),
+                                  F.col("timezone").alias("destination_timezone"))
+    df = df.join(origin, "origin_airport", "left")
+    return df.join(destination, "destination_airport", "left")

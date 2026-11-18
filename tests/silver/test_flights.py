@@ -7,6 +7,7 @@ from src.silver.flights import (
     add_departure_times,
     build_airport_code_mapping,
     translate_airport_codes,
+    add_airport_timezones
 )
 
 # Tipos de datos
@@ -118,3 +119,13 @@ def test_letter_codes_stay_the_same(spark):
     assert row["origin_airport"] == "JFK"
     assert row["destination_airport"] == "LAX"
     assert row["airport_code_was_numeric"] is False
+
+
+# Agrega a cada vuelo la zona horaria de su aeropuerto de origen y de destino.
+def test_timezones_are_added_for_origin_and_destination(spark):
+    flights = spark.createDataFrame([("ANC", "SEA")], "origin_airport string, destination_airport string")
+    airports = spark.createDataFrame([("ANC", "America/Anchorage"), ("SEA", "America/Los_Angeles")],
+                                     "iata_code string, timezone string")
+    row = add_airport_timezones(flights, airports).first()
+    assert row["origin_timezone"] == "America/Anchorage"
+    assert row["destination_timezone"] == "America/Los_Angeles"
