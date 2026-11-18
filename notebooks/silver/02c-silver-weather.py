@@ -32,3 +32,9 @@ display(result.groupBy("iata_code").count().orderBy("count"))  # ~8.760 por aero
 
 if result.count() == 0:
     raise RuntimeError("silver.weather_hourly quedó vacía")
+
+# Si a un aeropuerto le falta alguna variable en el JSON, explode no genera filas y desaparece sin aviso
+airports_bronze = raw.select("iata_code").distinct().count()
+airports_silver = result.select("iata_code").distinct().count()
+if airports_silver < airports_bronze:
+    raise RuntimeError(f"Faltan aeropuertos: {airports_bronze} en Bronze y {airports_silver} en Silver")

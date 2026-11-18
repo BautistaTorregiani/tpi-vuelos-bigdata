@@ -69,3 +69,9 @@ def test_deduplicate_keeps_latest_load(spark):
     result = deduplicate_weather(hourly).collect()
     assert len(result) == 1
     assert result[0]["temperature_2m"] == 9.0
+
+def test_missing_variable_drops_the_airport(spark):
+    # Si falta una variable pedida, el aeropuerto no genera filas: por eso el notebook lo controla
+    raw = make_raw(spark, [("ATL", ["2015-01-01T00:00"], [1.0], [0.0], datetime(2026, 1, 1))])
+    result = explode_hourly_weather(raw, VARIABLES + ["snowfall"])
+    assert result.count() == 0
