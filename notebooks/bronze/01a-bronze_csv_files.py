@@ -1,7 +1,7 @@
 # Databricks notebook source
 
 dbutils.widgets.text("catalog", "vuelos_dev")
-dbutils.widgets.text("landing_path", "abfss://landing@tpivuelos.dfs.core.windows.net/kaggle/flight_delays_2015")
+dbutils.widgets.text("landing_path", "abfss://landing@tpivuelos.dfs.core.windows.net")
 dbutils.widgets.text("batch_id", "manual")
 
 catalog = dbutils.widgets.get("catalog")
@@ -13,13 +13,14 @@ batch_id = dbutils.widgets.get("batch_id")
 from src.bronze.csv_ingestion import read_raw_csv, add_ingestion_metadata
 
 files = {
-    "airlines_raw": "airlines.csv",
-    "airports_raw": "airports.csv",
-    "flights_raw": "flights.csv",
+    "airlines_raw": "kaggle/flight_delays_2015/airlines.csv",
+    "airports_raw": "kaggle/flight_delays_2015/airports.csv",
+    "flights_raw": "kaggle/flight_delays_2015/flights.csv",
+    "airport_codes_raw": "airport_codes/master_coordinate.csv",
 }
 
-for table, file in files.items():
+for table_name, file in files.items():
     df = read_raw_csv(spark, f"{landing_path}/{file}")
     df = add_ingestion_metadata(df, batch_id)
-    df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{catalog}.bronze.{table}")
-    print(f"{table}: {spark.table(f'{catalog}.bronze.{table}').count():,} filas")
+    df.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{catalog}.bronze.{table_name}")
+    print(f"{table_name}: {spark.table(f'{catalog}.bronze.{table_name}').count():,} filas")
