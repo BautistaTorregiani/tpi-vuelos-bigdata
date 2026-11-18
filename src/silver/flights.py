@@ -1,0 +1,70 @@
+from pyspark.sql import DataFrame, functions as F
+
+FLIGHT_COLUMNS = {
+    "AIRLINE": ("airline", "string"),
+    "FLIGHT_NUMBER": ("flight_number", "int"),
+    "TAIL_NUMBER": ("tail_number", "string"),
+    "ORIGIN_AIRPORT": ("origin_airport", "string"),
+    "DESTINATION_AIRPORT": ("destination_airport", "string"),
+    "YEAR": ("year", "int"),
+    "MONTH": ("month", "int"),
+    "DAY": ("day", "int"),
+    "DAY_OF_WEEK": ("day_of_week", "int"),
+    "SCHEDULED_DEPARTURE": ("departure_planned_hhmm", "string"),
+    "DISTANCE": ("distance", "int"),
+    "SCHEDULED_TIME": ("planned_duration", "int"),
+    "ELAPSED_TIME": ("real_duration", "int"),
+    "AIR_TIME": ("air_time", "int"),
+    "TAXI_OUT": ("taxi_out", "int"),
+    "TAXI_IN": ("taxi_in", "int"),
+    "DEPARTURE_DELAY": ("departure_delay", "int"),
+    "ARRIVAL_DELAY": ("arrival_delay", "int"),
+    "CANCELLED": ("is_cancelled", "boolean"),
+    "DIVERTED": ("is_diverted", "boolean"),
+    "CANCELLATION_REASON": ("cancellation_reason", "string"),
+    "AIR_SYSTEM_DELAY": ("delay_air_system", "int"),
+    "SECURITY_DELAY": ("delay_security", "int"),
+    "AIRLINE_DELAY": ("delay_airline", "int"),
+    "LATE_AIRCRAFT_DELAY": ("delay_late_aircraft", "int"),
+    "WEATHER_DELAY": ("delay_weather", "int"),
+    "batch_id": ("batch_id", "string"),
+}
+
+
+def cast_flight_columns(df: DataFrame) -> DataFrame:
+    new_columns = []
+    for bronze_name, (silver_name, new_type) in FLIGHT_COLUMNS.items():
+        converted = F.expr(f"try_cast({bronze_name} AS {new_type})").alias(silver_name)
+        new_columns.append(converted)
+    return df.select(new_columns)
+
+
+def add_flight_date(df: DataFrame) -> DataFrame:
+    """Arma la fecha del vuelo a partir de año, mes y día, y descarta esas tres columnas."""
+    df = df.withColumn("flight_date", F.make_date("year", "month", "day"))
+    return df.drop("year", "month", "day")
+
+
+def add_departure_times(df: DataFrame) -> DataFrame:
+    """Arma la salida planeada y la real, en hora local.
+    La planeada es la fecha del vuelo pegada a la hora HHMM.
+    La real es la planeada más el retraso de salida."""
+
+    hhmm = F.lpad("departure_planned_hhmm", 4, "0")      # "5" → "0005", por las dudas
+    flight_date = F.col("flight_date")
+
+    # Caso especial: "2400" es la medianoche, o sea las 00:00 del día siguiente
+    is_midnight = hhmm == "2400"
+    hhmm = F.when(is_midnight, "0000").otherwise(hhmm)
+    flight_date = F.when(is_midnight, F.date_add(flight_date, 1)).otherwise(flight_date)
+
+    # "0005" → "00:05", y lo pegamos a la fecha: "2015-01-01 00:05"
+    time_text = F.concat(F.substring(hhmm, 1, 2), F.lit(":"), F.substring(hhmm, 3, 2))
+    datetime_text = F.concat(flight_date.cast("string"), F.lit(" "), time_text)
+    df = df.withColumn("departure_planned_local", F.to_timestamp_ntz(datetime_text, F.lit("yyyy-MM-dd HH:mm")))
+
+    # Salida real = salida planeada + retraso (si el vuelo se canceló, queda vacía)
+    df = df.withColumn("departure_real_local",
+                       F.expr("departure_planned_local + departure_delay * INTERVAL 1 MINUTE"))
+
+    return df.drop("departure_planned_hhmm")

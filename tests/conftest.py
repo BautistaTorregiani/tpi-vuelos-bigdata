@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -15,6 +15,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 @pytest.fixture(scope="session")
 def spark():
-    spark = SparkSession.builder.master("local[1]").appName("tests").getOrCreate()
+    spark = (SparkSession.builder.master("local[1]").appName("tests")
+             .config("spark.sql.session.timeZone", "UTC")   # sin horario de verano: las horas no se corren
+             .getOrCreate())
     yield spark
     spark.stop()
