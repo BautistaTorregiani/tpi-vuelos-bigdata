@@ -68,3 +68,36 @@ def add_departure_times(df: DataFrame) -> DataFrame:
                        F.expr("departure_planned_local + departure_delay * INTERVAL 1 MINUTE"))
 
     return df.drop("departure_planned_hhmm")
+
+
+
+
+# Códigos de aeropuerto de octubre
+# En octubre de 2015 los vuelos traen códigos numéricos (ej. 10397)
+# en lugar de los de 3 letras (ej. ATL). Acá los traducimos.
+
+def build_airport_code_mapping(codes, reference_date="2015-10-01"):
+    """Arma la tabla código numérico -> código de 3 letras, vigente en la fecha dada."""
+    # master_coordinate tiene varias filas por aeropuerto, una por período de vigencia.
+    # Nos quedamos con la que estaba vigente en la fecha (si THRU_DATE está vacía, sigue vigente).
+    date = F.lit(reference_date).cast("date")
+    start = F.to_date("AIRPORT_START_DATE", "M/d/yyyy h:mm:ss a")
+    thru = F.to_date("AIRPORT_THRU_DATE", "M/d/yyyy h:mm:ss a")
+    valid = codes.filter((start <= date) & (thru.isNull() | (thru >= date)))
+    return valid.select(F.col("AIRPORT_ID").alias("code"),
+                        F.col("AIRPORT").alias("iata_code"))
+
+
+def translate_airport_codes(df, mapping):
+    """Reemplaza los códigos numéricos de origen y destino por el de 3 letras."""
+    was_numeric = (F.col("origin_airport").rlike("^[0-9]+$")
+                   | F.col("destination_airport").rlike("^[0-9]+$"))
+    df = df.withColumn("airport_code_was_numeric", was_numeric)
+
+    # Pasamos la tabla a un diccionario: {"10397": "ATL", "12478": "JFK", ...}
+    translations = {}
+    for row in mapping.collect():
+        translations[row["code"]] = row["iata_code"]
+
+    # Buscar y reemplazar en las dos columnas
+    return df.replace(translations, subset=["origin_airport", "destination_airport"])
