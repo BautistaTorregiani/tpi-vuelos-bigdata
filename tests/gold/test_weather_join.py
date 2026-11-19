@@ -46,7 +46,7 @@ def test_inner_join_drops_flights_without_weather(spark):
     flights = make_flights(spark, [(1, "ATL", datetime(2015, 1, 15, 19, 0)),
                                    (2, "ABQ", datetime(2015, 1, 15, 19, 0))])   # ABQ no tiene clima
 
-    result = add_departure_weather(flights, weather, ["temperature_2m"])
+    result = add_departure_weather(flights, weather, ["temperature_2m"], how="inner")
     assert result.count() == 1
     assert result.first()["flight_id"] == 1
 
@@ -58,3 +58,14 @@ def test_left_join_keeps_flights_without_weather(spark):
     row = add_departure_weather(flights, weather, ["temperature_2m"], how="left").first()
     assert row["flight_id"] == 2
     assert row["temperature_2m"] is None
+
+
+def test_has_weather_marks_flights_without_weather(spark):
+    weather = make_weather(spark, [("ATL", datetime(2015, 1, 15, 19, 0), 5.0)])
+    flights = make_flights(spark, [(1, "ATL", datetime(2015, 1, 15, 19, 0)),
+                                   (2, "ABQ", datetime(2015, 1, 15, 19, 0))])
+
+    rows = {r["flight_id"]: r for r in add_departure_weather(flights, weather, ["temperature_2m"]).collect()}
+    assert len(rows) == 2                     # por defecto no se pierde ningún vuelo
+    assert rows[1]["has_weather"] is True
+    assert rows[2]["has_weather"] is False
