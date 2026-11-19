@@ -206,17 +206,32 @@ def test_cancelled_flight_has_no_local_real_arrival(spark):
 #  Identificador del vuelo
 
 def make_ids(spark, rows):
-    df = spark.createDataFrame(rows, "flight_date date, airline string, flight_number int, "
-                                     "origin_airport string, departure_planned_local timestamp_ntz")
+    """Calcula el flight_id de vuelos de prueba: (fecha, aerolínea, número, origen, destino, salida)."""
+    schema = ("flight_date date, airline string, flight_number int, origin_airport string, "
+              "destination_airport string, departure_planned_local timestamp_ntz")
+    df = spark.createDataFrame(rows, schema)
     return [r["flight_id"] for r in add_flight_id(df).collect()]
 
-
 def test_same_flight_gets_same_id(spark):
-    row = (date(2015, 1, 1), "AA", 100, "JFK", datetime(2015, 1, 1, 8, 0))
+    row = (date(2015, 1, 1), "AA", 100, "JFK", "LAX", datetime(2015, 1, 1, 8, 0))
     assert make_ids(spark, [row])[0] == make_ids(spark, [row])[0]
+
+# Mismo vuelo, origen y hora, pero distinto destino (el AA 803 del 29/8/2015): son dos vuelos distintos.
+def test_flights_to_different_destinations_have_different_ids(spark):
+    schema = ("flight_date date, airline string, flight_number int, origin_airport string, "
+              "destination_airport string, departure_planned_local timestamp_ntz")
+    flights = spark.createDataFrame(
+        [(date(2015, 8, 29), "AA", 803, "STT", "CLT", datetime(2015, 8, 29, 14, 35)),
+         (date(2015, 8, 29), "AA", 803, "STT", "SJU", datetime(2015, 8, 29, 14, 35))],
+        schema,
+    )
+    ids = add_flight_id(flights).select("flight_id").distinct().count()
+    assert ids == 2
 
 
 def test_other_leg_gets_other_id(spark):
-    ids = make_ids(spark, [(date(2015, 1, 1), "AA", 100, "JFK", datetime(2015, 1, 1, 8, 0)),
-                           (date(2015, 1, 1), "AA", 100, "ORD", datetime(2015, 1, 1, 12, 0))])
+    ids = make_ids(spark, [(date(2015, 1, 1), "AA", 100, "JFK", "ORD", datetime(2015, 1, 1, 8, 0)),
+                           (date(2015, 1, 1), "AA", 100, "ORD", "LAX", datetime(2015, 1, 1, 12, 0))])
     assert ids[0] != ids[1]
+
+

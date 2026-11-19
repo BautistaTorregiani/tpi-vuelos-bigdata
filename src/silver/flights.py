@@ -160,4 +160,5 @@ def add_arrival_local(df):
 def add_flight_id(df):
     """Identificador del vuelo: siempre da el mismo valor para el mismo vuelo."""
     return df.withColumn("flight_id", F.xxhash64("flight_date", "airline", "flight_number",
-                                                 "origin_airport", "departure_planned_local"))
+                                                 "origin_airport", "destination_airport",
+                                                 "departure_planned_local"))
