@@ -11,7 +11,7 @@ from pyspark.sql import functions as F
 from src.silver.flights import (cast_flight_columns, add_flight_date, add_departure_times,
                                 build_airport_code_mapping, translate_airport_codes,
                                 add_airport_timezones, add_departure_utc,
-                                add_arrival_utc, add_arrival_local)
+                                add_arrival_utc, add_arrival_local, add_flight_id)
 from src.common.quality import save_check
 
 flights = spark.table(f"{catalog}.bronze.flights_raw")
@@ -23,6 +23,7 @@ flights = add_departure_times(flights)
 codes = spark.table(f"{catalog}.bronze.airport_codes_raw")
 mapping = build_airport_code_mapping(codes)
 flights = translate_airport_codes(flights, mapping)
+flights = add_flight_id(flights)
 
 # Con la zona horaria de cada aeropuerto pasamos los horarios a UTC
 airports = spark.table(f"{catalog}.silver.airports")
@@ -51,8 +52,12 @@ without_timezone = result.filter(F.col("origin_timezone").isNull()
                                  | F.col("destination_timezone").isNull()).count()
 print(f"Vuelos sin zona horaria: {without_timezone}")
 
+repeated_ids = result.count() - result.select("flight_id").distinct().count()
+print(f"Vuelos con id repetido: {repeated_ids}")
+
 save_check(spark, catalog, "flights", "codigos_sin_traducir", numeric_codes, True, batch_id)
 save_check(spark, catalog, "flights", "sin_zona_horaria", without_timezone, True, batch_id)
+save_check(spark, catalog, "flights", "id_repetido", repeated_ids, True, batch_id)
 
-if numeric_codes > 0 or without_timezone > 0:
-    raise RuntimeError("Hay vuelos sin traducir o sin zona horaria: no se pueden unir con el clima")
+if numeric_codes > 0 or without_timezone > 0 or repeated_ids > 0:
+    raise RuntimeError("Hay vuelos sin traducir, sin zona horaria o repetidos")

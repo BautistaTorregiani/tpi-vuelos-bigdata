@@ -1,6 +1,7 @@
 from datetime import date, datetime
 
 from src.silver.flights import (
+    add_flight_id,
     FLIGHT_COLUMNS,
     cast_flight_columns,
     add_flight_date,
@@ -201,3 +202,21 @@ def test_cancelled_flight_has_no_local_real_arrival(spark):
     assert row["arrival_planned_local"] == datetime(2015, 1, 1, 6, 0)
     assert row["arrival_real_local"] is None
 
+
+#  Identificador del vuelo
+
+def make_ids(spark, rows):
+    df = spark.createDataFrame(rows, "flight_date date, airline string, flight_number int, "
+                                     "origin_airport string, departure_planned_local timestamp_ntz")
+    return [r["flight_id"] for r in add_flight_id(df).collect()]
+
+
+def test_same_flight_gets_same_id(spark):
+    row = (date(2015, 1, 1), "AA", 100, "JFK", datetime(2015, 1, 1, 8, 0))
+    assert make_ids(spark, [row])[0] == make_ids(spark, [row])[0]
+
+
+def test_other_leg_gets_other_id(spark):
+    ids = make_ids(spark, [(date(2015, 1, 1), "AA", 100, "JFK", datetime(2015, 1, 1, 8, 0)),
+                           (date(2015, 1, 1), "AA", 100, "ORD", datetime(2015, 1, 1, 12, 0))])
+    assert ids[0] != ids[1]
