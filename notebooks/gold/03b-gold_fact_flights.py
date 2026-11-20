@@ -9,6 +9,8 @@ batch_id = dbutils.widgets.get("batch_id")
 
 from src.gold.fact_flights import build_fact_flights, count_orphans
 from src.common.quality import build_check, save_checks, fail_if_critical
+from src.common.catalog_comments import apply_comments
+from src.gold.star_dictionary import STAR_DICTIONARY
 
 flights = spark.table(f"{catalog}.silver.flights")
 weather = spark.table(f"{catalog}.silver.weather_hourly")
@@ -42,3 +44,9 @@ save_checks(spark, catalog, checks, batch_id)
 fail_if_critical(checks)
 
 fact.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{catalog}.gold.fact_flights")
+
+# COMMAND ----------
+
+# Comentarios de Unity Catalog en la fact y sus columnas
+table_comment, column_comments = STAR_DICTIONARY["fact_flights"]
+apply_comments(spark, f"{catalog}.gold.fact_flights", table_comment, column_comments)

@@ -9,6 +9,8 @@ batch_id = dbutils.widgets.get("batch_id")
 
 from src.gold.dimensions import build_dim_date, build_dim_airline, build_dim_airport, build_dim_weather
 from src.common.quality import build_check, save_checks, fail_if_critical
+from src.common.catalog_comments import apply_comments
+from src.gold.star_dictionary import STAR_DICTIONARY
 
 holidays = spark.table(f"{catalog}.silver.holidays")
 airlines = spark.table(f"{catalog}.silver.airlines")
@@ -51,3 +53,10 @@ dim_date.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f
 dim_airline.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{catalog}.gold.dim_airline")
 dim_airport.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{catalog}.gold.dim_airport")
 dim_weather.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{catalog}.gold.dim_weather")
+
+# COMMAND ----------
+
+# Comentarios de Unity Catalog en cada dimensión y sus columnas
+for table_name in ["dim_date", "dim_airline", "dim_airport", "dim_weather"]:
+    table_comment, column_comments = STAR_DICTIONARY[table_name]
+    apply_comments(spark, f"{catalog}.gold.{table_name}", table_comment, column_comments)
