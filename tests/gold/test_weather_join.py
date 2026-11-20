@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from src.gold.weather_join import build_weather_key, add_departure_weather
+from src.gold.weather_join import build_weather_key, add_departure_weather, rename_weather_columns
 
 
 def make_weather(spark, rows):
@@ -69,3 +69,10 @@ def test_has_weather_marks_flights_without_weather(spark):
     assert len(rows) == 2                     # por defecto no se pierde ningún vuelo
     assert rows[1]["has_weather"] is True
     assert rows[2]["has_weather"] is False
+
+
+def test_weather_columns_get_gold_names(spark):
+    df = spark.createDataFrame([(5.0, 1.2)], "temperature_2m double, precipitation double")
+    row = rename_weather_columns(df).first()
+    assert row["temperature_c"] == 5.0
+    assert row["precipitation_mm"] == 1.2

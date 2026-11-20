@@ -20,3 +20,19 @@ def add_departure_weather(flights, weather, variables, how="left"):
 
     joined = joined.withColumn("has_weather", F.coalesce(F.col("has_weather"), F.lit(False)))
     return joined.drop("iata_code", "weather_hour_utc")
+
+WEATHER_COLUMN_NAMES = {
+    "temperature_2m": "temperature_c",
+    "precipitation": "precipitation_mm",
+    "snowfall": "snowfall_cm",
+    "wind_speed_10m": "wind_speed_kmh",
+    "wind_gusts_10m": "wind_gusts_kmh",
+    "cloud_cover": "cloud_cover_pct",
+}
+
+
+def rename_weather_columns(df):
+    """Renombra las variables de clima de Silver con la unidad en el nombre, como en dim_weather."""
+    for silver_name, gold_name in WEATHER_COLUMN_NAMES.items():
+        df = df.withColumnRenamed(silver_name, gold_name)
+    return df

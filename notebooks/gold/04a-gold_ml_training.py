@@ -15,7 +15,7 @@ variables = dbutils.widgets.get("weather_variables").split(",")
 # COMMAND ----------
 
 from pyspark.sql import functions as F
-from src.gold.weather_join import add_departure_weather
+from src.gold.weather_join import add_departure_weather, rename_weather_columns
 from src.gold.ml_training import (add_exclusion_reason, add_target, add_calendar_features,
                                   add_holiday_features, add_history_features, add_split)
 from src.gold.ml_dictionary import DATA_DICTIONARY, COLUMNS
@@ -26,6 +26,7 @@ weather = spark.table(f"{catalog}.silver.weather_hourly")
 holidays = spark.table(f"{catalog}.silver.holidays")
 
 flights = add_departure_weather(flights, weather, variables)
+flights = rename_weather_columns(flights)
 flights = add_exclusion_reason(flights)
 
 # Registro de población: cuántos vuelos entran y cuántos se excluyen y por qué
