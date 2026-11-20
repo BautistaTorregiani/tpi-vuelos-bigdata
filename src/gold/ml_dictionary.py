@@ -1,6 +1,9 @@
 # Diccionario de datos de gold.ml_flight_delay_training: (columna, descripción, origen, disponibilidad)
 BEFORE = "antes de la salida programada"
 
+TABLE_COMMENT = ("Una fila por vuelo completado con clima en el origen. "
+                 "Target: is_delayed. Predictoras conocidas antes de la salida programada.")
+
 DATA_DICTIONARY = [
     ("flight_id", "Identificador del vuelo (hash de fecha, aerolínea, número, origen, destino y salida)", "silver.flights", "identificador"),
     ("flight_date", "Fecha del vuelo", "silver.flights", BEFORE),
@@ -34,3 +37,23 @@ DATA_DICTIONARY = [
 ]
 
 COLUMNS = [row[0] for row in DATA_DICTIONARY]
+
+def column_comments():
+    """El comentario de cada columna: descripción, origen y disponibilidad."""
+    comments = []
+    for column, description, origin, availability in DATA_DICTIONARY:
+        comments.append((column, f"{description}. Origen: {origin}. Disponible: {availability}"))
+    return comments
+
+
+def build_dictionary_table(spark, table):
+    """El diccionario como tabla, con el tipo de dato real de cada columna, para anexar al informe."""
+    types = {}
+    for field in spark.table(table).schema.fields:
+        types[field.name] = field.dataType.simpleString()
+
+    rows = []
+    for column, description, origin, availability in DATA_DICTIONARY:
+        rows.append((column, types[column], description, origin, availability))
+    return spark.createDataFrame(rows, "column_name string, data_type string, description string, "
+                                       "origin string, availability string")

@@ -18,8 +18,9 @@ from pyspark.sql import functions as F
 from src.gold.weather_join import add_departure_weather, rename_weather_columns
 from src.gold.ml_training import (add_exclusion_reason, add_target, add_calendar_features,
                                   add_holiday_features, add_history_features, add_split)
-from src.gold.ml_dictionary import DATA_DICTIONARY, COLUMNS
+from src.gold.ml_dictionary import DATA_DICTIONARY, COLUMNS, TABLE_COMMENT, column_comments, build_dictionary_table
 from src.common.quality import build_check, save_checks, fail_if_critical
+from src.common.catalog_comments import apply_comments
 
 flights = spark.table(f"{catalog}.silver.flights")
 weather = spark.table(f"{catalog}.silver.weather_hourly")
@@ -75,19 +76,10 @@ log.write.mode("overwrite").saveAsTable(f"{catalog}.gold.ml_population_log")
 
 # COMMAND ----------
 
-# Diccionario de datos: comentarios en Unity Catalog y una tabla para anexar al informe
+# Comentarios de Unity Catalog y diccionario de datos como tabla, para el informe
 table = f"{catalog}.gold.ml_flight_delay_training"
-spark.sql(f"COMMENT ON TABLE {table} IS 'Una fila por vuelo completado con clima en el origen. "
-          f"Target: is_delayed. Predictoras conocidas antes de la salida programada.'")
-for column, description, origin, availability in DATA_DICTIONARY:
-    comment = f"{description}. Origen: {origin}. Disponible: {availability}".replace("'", "")
-    spark.sql(f"ALTER TABLE {table} ALTER COLUMN {column} COMMENT '{comment}'")
-
-types = {field.name: field.dataType.simpleString() for field in spark.table(table).schema.fields}
-dictionary = [(c, types[c], d, o, a) for c, d, o, a in DATA_DICTIONARY]
-spark.createDataFrame(dictionary, "column_name string, data_type string, description string, "
-                                  "origin string, availability string") \
-    .write.mode("overwrite").saveAsTable(f"{catalog}.gold.ml_data_dictionary")
+apply_comments(spark, table, TABLE_COMMENT, column_comments())
+build_dictionary_table(spark, table).write.mode("overwrite").saveAsTable(f"{catalog}.gold.ml_data_dictionary")
 
 # Resumen por partición: cantidad de filas y tasa de demora (desbalance)
 display(spark.table(table).groupBy("split").agg(F.count("*").alias("rows"),
