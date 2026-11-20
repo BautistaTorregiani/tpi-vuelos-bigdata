@@ -4,10 +4,17 @@ dbutils.widgets.text("catalog", "vuelos_dev")
 dbutils.widgets.text("batch_id", "manual")
 dbutils.widgets.text("start_date", "2015-01-01")
 dbutils.widgets.text("end_date", "2015-12-31")
+dbutils.widgets.text("force_fail", "false")
+
 catalog = dbutils.widgets.get("catalog")
 batch_id = dbutils.widgets.get("batch_id")
 start_date = dbutils.widgets.get("start_date")
 end_date = dbutils.widgets.get("end_date")
+force_fail = dbutils.widgets.get("force_fail")
+
+# Fallo provocado a propósito, solo para demostrar el repair run
+if force_fail == "true":
+    raise RuntimeError("Fallo provocado a propósito para probar el repair run")
 
 # COMMAND ----------
 
