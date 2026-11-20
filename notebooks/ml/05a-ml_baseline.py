@@ -15,8 +15,8 @@ import mlflow
 from pyspark.sql import functions as F
 from sklearn.dummy import DummyClassifier
 from sklearn.ensemble import HistGradientBoostingClassifier
-from src.ml.baseline import (TARGET, FEATURES, fit_categories, prepare_features,
-                             categorical_mask, evaluate)
+from src.ml.baseline import (TARGET, FEATURES, CATEGORICAL, CODED, fit_categories, prepare_features,
+                             categorical_mask, evaluate, build_logistic_regression)
 
 table = spark.table(f"{catalog}.gold.ml_flight_delay_training").select(FEATURES + [TARGET, "split"])
 
@@ -59,6 +59,11 @@ with mlflow.start_run(run_name="baseline_prior"):
     dummy = DummyClassifier(strategy="prior").fit(X_train, y_train)
     log_results(dummy, "baseline_prior")
 
+# Regresión logística: el modelo que se puede explicar variable por variable
+with mlflow.start_run(run_name="logistic_regression"):
+    logistic = build_logistic_regression().fit(X_train, y_train)
+    log_results(logistic, "logistic_regression")
+
 # Modelo: gradient boosting, con pesos por clase por el desbalance (~1 demorado cada 5)
 with mlflow.start_run(run_name="hist_gradient_boosting"):
     model = HistGradientBoostingClassifier(categorical_features=categorical_mask(),
@@ -66,3 +71,33 @@ with mlflow.start_run(run_name="hist_gradient_boosting"):
                                            early_stopping=True, random_state=seed)
     model.fit(X_train, y_train)
     log_results(model, "hist_gradient_boosting")
+
+# COMMAND ----------
+
+# Las 15 variables con más peso en la regresión logística (coeficientes estandarizados)
+import pandas as pd
+
+
+def readable_name(name):
+    """Pasa 'categories__airline_2.0' a 'airline = UA' y saca el prefijo de las numéricas."""
+    for column in CATEGORICAL + CODED:
+        prefix = f"categories__{column}_"
+        if name.startswith(prefix):
+            code = int(float(name[len(prefix):]))
+            if code == -1:
+                return f"{column} = desconocido"
+            return f"{column} = {categories[column][code]}"
+    return name.replace("numeric__", "")
+
+
+names = []
+for name in logistic.named_steps["prepare"].get_feature_names_out():
+    names.append(readable_name(name))
+
+coefficients = logistic.named_steps["model"].coef_[0]
+weights = pd.DataFrame({"variable": names, "coeficiente": coefficients})
+weights["peso"] = weights["coeficiente"].abs()
+display(weights.sort_values("peso", ascending=False).head(15))
+
+# Solo las numéricas (las que no son categorías), que son las más fáciles de explicar
+display(weights[~weights["variable"].str.contains(" = ")].sort_values("peso", ascending=False).head(15))

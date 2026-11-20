@@ -1,5 +1,10 @@
 import numpy as np
+from sklearn.compose import ColumnTransformer
+from sklearn.impute import SimpleImputer
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, precision_score, recall_score, roc_auc_score
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 TARGET = "is_delayed"
 
@@ -54,3 +59,22 @@ def evaluate(y_true, probabilities, threshold=0.5):
         "recall": recall_score(y_true, predicted, zero_division=0),
         "f1": f1_score(y_true, predicted, zero_division=0),
     }
+
+
+def build_logistic_regression():
+    """Regresión logística con la preparación que necesita: completa los nulos,
+    estandariza los números y pasa las categorías a columnas de 0 y 1."""
+    numeric = Pipeline([
+        ("fill", SimpleImputer(strategy="median", add_indicator=True)),
+        ("scale", StandardScaler()),
+    ])
+    categories = Pipeline([
+        ("fill", SimpleImputer(strategy="constant", fill_value=-1)),
+        ("one_hot", OneHotEncoder(handle_unknown="ignore")),
+    ])
+    prepare = ColumnTransformer([
+        ("numeric", numeric, NUMERIC),
+        ("categories", categories, CATEGORICAL + CODED),
+    ])
+    model = LogisticRegression(class_weight="balanced", max_iter=1000)
+    return Pipeline([("prepare", prepare), ("model", model)])

@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 
-from src.ml.baseline import FEATURES, categorical_mask, evaluate, fit_categories, prepare_features
+from src.ml.baseline import (FEATURES, build_logistic_regression, categorical_mask, evaluate,
+                             fit_categories, prepare_features)
 
 
 def make_flights(rows):
@@ -38,3 +39,16 @@ def test_perfect_predictions_have_auc_1():
     metrics = evaluate(np.array([0, 0, 1, 1]), np.array([0.1, 0.2, 0.8, 0.9]))
     assert metrics["auc"] == 1.0
     assert metrics["precision"] == 1.0 and metrics["recall"] == 1.0
+
+
+def test_logistic_regression_handles_nulls_and_new_categories():
+    train = make_flights([("AA", "ATL", "JFK"), ("DL", "ORD", "LAX"),
+                          ("AA", "ORD", "JFK"), ("DL", "ATL", "LAX")])
+    train["route_delay_rate_30d"] = [0.1, None, 0.3, 0.5]    # una ruta sin historia
+    test = make_flights([("ZZ", "ATL", "JFK")])               # aerolínea que no estaba en train
+    test["route_delay_rate_30d"] = [None]
+
+    categories = fit_categories(train)
+    model = build_logistic_regression().fit(prepare_features(train, categories), [0, 1, 0, 1])
+    probability = model.predict_proba(prepare_features(test, categories))[0, 1]
+    assert 0 <= probability <= 1
