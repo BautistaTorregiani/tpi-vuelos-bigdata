@@ -3,8 +3,8 @@ from pyspark.sql import functions as F
 from src.gold.weather_join import build_weather_key
 
 # Dimensión de fecha
-def build_dim_date(spark, holidays, start_date="2015-01-01", end_date="2015-12-31"):
-    """Una fila por día del año, con sus datos de calendario y los feriados nacionales."""
+def build_dim_date(spark, holidays, start_date, end_date):
+    """Una fila por día entre start_date y end_date, con sus datos de calendario y los feriados nacionales."""
     days = F.sequence(F.to_date(F.lit(start_date)), F.to_date(F.lit(end_date)))
     dates = spark.range(1).select(F.explode(days).alias("date"))
 

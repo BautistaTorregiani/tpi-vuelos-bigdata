@@ -28,7 +28,7 @@ def test_dimension_columns_are_all_described(spark):
                                     "precipitation double, snowfall double, wind_speed_10m double, "
                                     "wind_gusts_10m double, cloud_cover double")
 
-    assert build_dim_date(spark, holidays).columns == described_columns("dim_date")
+    assert build_dim_date(spark, holidays, "2015-01-01", "2015-12-31").columns == described_columns("dim_date")
     assert build_dim_airline(airlines).columns == described_columns("dim_airline")
     assert build_dim_airport(airports, weather).columns == described_columns("dim_airport")
     assert build_dim_weather(spark, weather).columns == described_columns("dim_weather")

@@ -10,13 +10,13 @@ def make_holidays(spark, rows):
 
 
 def test_dim_date_has_one_row_per_day(spark):
-    dim = build_dim_date(spark, make_holidays(spark, []))
+    dim = build_dim_date(spark, make_holidays(spark, []), "2015-01-01", "2015-12-31")
     assert dim.count() == 365
     assert dim.select("date_key").distinct().count() == 365
 
 
 def test_dim_date_calendar_columns(spark):
-    dim = build_dim_date(spark, make_holidays(spark, []))
+    dim = build_dim_date(spark, make_holidays(spark, []), "2015-01-01", "2015-12-31")
     row = dim.filter("date = '2015-08-29'").first()     # un sábado
     assert row["date_key"] == 20150829
     assert row["quarter"] == 3
@@ -25,7 +25,7 @@ def test_dim_date_calendar_columns(spark):
 
 
 def test_monday_is_day_one(spark):
-    dim = build_dim_date(spark, make_holidays(spark, []))
+    dim = build_dim_date(spark, make_holidays(spark, []), "2015-01-01", "2015-12-31")
     row = dim.filter("date = '2015-01-05'").first()     # un lunes
     assert row["day_of_week"] == 1
     assert row["is_weekend"] is False
@@ -34,7 +34,7 @@ def test_monday_is_day_one(spark):
 def test_only_national_holidays_are_marked(spark):
     holidays = make_holidays(spark, [(date(2015, 7, 4), "Independence Day", True),
                                      (date(2015, 3, 2), "Texas Independence Day", False)])
-    dim = build_dim_date(spark, holidays)
+    dim = build_dim_date(spark, holidays, "2015-01-01", "2015-12-31")
 
     july_4 = dim.filter("date = '2015-07-04'").first()
     march_2 = dim.filter("date = '2015-03-02'").first()

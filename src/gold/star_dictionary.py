@@ -1,6 +1,6 @@
 STAR_DICTIONARY = {
     "dim_date": (
-        "Calendario de 2015: una fila por día, con datos de calendario y feriados nacionales de EE.UU.",
+        "Calendario: una fila por día del período procesado, con datos de calendario y feriados nacionales de EE.UU.",
         [
             ("date_key", "Clave del día, en formato AAAAMMDD (ej. 20150829)"),
             ("date", "Fecha"),
@@ -33,11 +33,11 @@ STAR_DICTIONARY = {
             ("latitude", "Latitud, en grados"),
             ("longitude", "Longitud, en grados"),
             ("timezone", "Zona horaria (ej. America/New_York), usada para pasar los horarios a UTC"),
-            ("has_weather", "Si es uno de los 50 aeropuertos de origen con datos de clima"),
+            ("has_weather", "Si es uno de los aeropuertos de origen con datos de clima (los de más vuelos)"),
         ],
     ),
     "dim_weather": (
-        "Clima horario de los 50 aeropuertos de origen con más vuelos (Open-Meteo): una fila por "
+        "Clima horario de los aeropuertos de origen con más vuelos (Open-Meteo): una fila por "
         "aeropuerto y hora UTC, más la fila -1 (Sin dato) para los vuelos sin clima.",
         [
             ("weather_key", "Clave del clima: hash del aeropuerto y la hora UTC; -1 para los vuelos sin clima"),
@@ -56,7 +56,7 @@ STAR_DICTIONARY = {
         ],
     ),
     "fact_flights": (
-        "Una fila por vuelo programado de 2015 en EE.UU., incluidos cancelados y desviados. "
+        "Una fila por vuelo programado en EE.UU., incluidos cancelados y desviados. "
         "Medidas de puntualidad y claves hacia las dimensiones de fecha, aerolínea, aeropuerto y clima.",
         [
             ("flight_id", "Identificador del vuelo: hash de fecha, aerolínea, número, origen, destino y salida planeada"),
