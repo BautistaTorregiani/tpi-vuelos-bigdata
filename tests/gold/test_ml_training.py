@@ -39,7 +39,7 @@ def test_history_only_looks_at_previous_days(spark):
     # Un vuelo demorado el 1/1 y otro puntual el 10/1; queremos la historia del 10/1
     history = spark.createDataFrame([("AA", date(2015, 1, 1), 60), ("AA", date(2015, 1, 10), 0)],
                                     "airline string, flight_date date, arrival_delay int")
-    flights = spark.createDataFrame([("AA", date(2015, 1, 1)), ("AA", date(2015, 1, 10)), ("AA", date(2015, 2, 5))],
+    flights = spark.createDataFrame([("AA", date(2015, 1, 1)), ("AA", date(2015, 1, 10))],
                                     "airline string, flight_date date")
     rows = {r["flight_date"]: r for r in add_history_features(flights, history, ["airline"], "airline").collect()}
 
@@ -51,14 +51,26 @@ def test_history_only_looks_at_previous_days(spark):
 
 def test_split_is_temporal(spark):
     df = spark.createDataFrame([(date(2015, 8, 31),), (date(2015, 9, 1),), (date(2015, 11, 1),)], "flight_date date")
-    splits = [r["split"] for r in add_split(df, "2015-08-31", "2015-10-31").collect()]
+    splits = []
+    for row in add_split(df, "2015-08-31", "2015-10-31").collect():
+        splits.append(row["split"])
     assert splits == ["train", "validation", "test"]
 
 
 def test_history_forgets_flights_older_than_30_days(spark):
-    history = spark.createDataFrame([("AA", date(2015, 1, 1), 60), ("AA", date(2015, 1, 10), 0)],
+    history = spark.createDataFrame([("AA", date(2015, 1, 1), 60), ("AA", date(2015, 1, 10), 0),
+                                     ("AA", date(2015, 2, 5), 0)],
                                     "airline string, flight_date date, arrival_delay int")
     flights = spark.createDataFrame([("AA", date(2015, 2, 5))], "airline string, flight_date date")
     row = add_history_features(flights, history, ["airline"], "airline").first()
     assert row["airline_flights_30d"] == 1         # el 1/1 quedó fuera de la ventana, el 10/1 no
     assert row["airline_delay_rate_30d"] == 0.0
+
+
+def test_history_skips_the_previous_day(spark):
+    # Un vuelo demorado el 19/8: el vuelo del 20/8 no lo ve, porque podría seguir en el aire
+    history = spark.createDataFrame([("AA", date(2015, 8, 19), 60), ("AA", date(2015, 8, 20), 0)],
+                                    "airline string, flight_date date, arrival_delay int")
+    flights = spark.createDataFrame([("AA", date(2015, 8, 20))], "airline string, flight_date date")
+    row = add_history_features(flights, history, ["airline"], "airline").first()
+    assert row["airline_flights_30d"] == 0

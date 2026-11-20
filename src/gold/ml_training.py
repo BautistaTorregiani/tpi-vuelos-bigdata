@@ -40,26 +40,33 @@ def add_holiday_features(df, holidays):
 
 def add_history_features(df, history, keys, prefix, days=HISTORY_DAYS):
     """Cantidad de vuelos y tasa de demora de los días ANTERIORES (nunca el mismo día),
-    agrupando por keys. history son los vuelos completados de los que se aprende."""
-    daily = history.groupBy(*keys, "flight_date").agg(
+    agrupando por keys. history son los vuelos completados de los que se aprende;"""
+    group_columns = keys + ["flight_date"]
+
+    daily = history.groupBy(group_columns).agg(
         F.count("*").alias("flights"),
         F.sum((F.col("arrival_delay") >= 15).cast("int")).alias("delayed"))
-    # Sumamos los días de los vuelos a predecir, aunque ese día no haya historia
-    targets = df.select(*keys, "flight_date").distinct()
-    daily = targets.join(daily, [*keys, "flight_date"], "full")
-    daily = daily.withColumn("flights", F.coalesce("flights", F.lit(0)))
-    daily = daily.withColumn("delayed", F.coalesce("delayed", F.lit(0)))
     daily = daily.withColumn("day_number", F.expr("unix_date(flight_date)"))
 
-    # Desde "days" días antes hasta el día anterior: el mismo día no se mira
-    previous_days = Window.partitionBy(*keys).orderBy("day_number").rangeBetween(-days, -1)
-    daily = daily.withColumn("n", F.sum("flights").over(previous_days))
-    daily = daily.withColumn("d", F.sum("delayed").over(previous_days))
+    # Sumamos los días de los vuelos a predecir, aunque ese día no haya historia (con 0 vuelos)
+    days_to_predict = df.select(group_columns).distinct()
+    daily = days_to_predict.join(daily, group_columns, "full")
+    daily = daily.fillna(0, subset=["flights", "delayed"])
 
-    daily = daily.select(*keys, "flight_date",
-                         F.coalesce("n", F.lit(0)).alias(f"{prefix}_flights_{days}d"),
-                         (F.col("d") / F.when(F.col("n") > 0, F.col("n"))).alias(f"{prefix}_delay_rate_{days}d"))
-    return df.join(daily, [*keys, "flight_date"], "left")
+    # Desde "days" días antes hasta el día anterior: el mismo día no se mira
+    previous_days = Window.partitionBy(keys).orderBy("day_number").rangeBetween(-days - 1, -2)
+    daily = daily.withColumn("previous_flights",
+                             F.coalesce(F.sum("flights").over(previous_days), F.lit(0)))
+    daily = daily.withColumn("previous_delayed", F.sum("delayed").over(previous_days))
+
+    flights_name = f"{prefix}_flights_{days}d"
+    rate_name = f"{prefix}_delay_rate_{days}d"
+    delay_rate = F.when(F.col("previous_flights") > 0,
+                        F.col("previous_delayed") / F.col("previous_flights"))
+    daily = daily.select(*group_columns,
+                         F.col("previous_flights").alias(flights_name),
+                         delay_rate.alias(rate_name))
+    return df.join(daily, group_columns, "left")
 
 
 def add_split(df, train_end, validation_end):
