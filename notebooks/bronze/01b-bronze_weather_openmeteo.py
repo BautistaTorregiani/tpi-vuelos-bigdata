@@ -1,6 +1,7 @@
 # Databricks notebook source
 
 dbutils.widgets.text("catalog", "vuelos_dev")
+dbutils.widgets.text("landing_path", "abfss://landing@tpivuelos.dfs.core.windows.net")
 dbutils.widgets.text("start_date", "2015-01-01")
 dbutils.widgets.text("end_date", "2015-12-31")
 dbutils.widgets.text("top_n", "50")
@@ -9,6 +10,7 @@ dbutils.widgets.text("weather_variables",
 dbutils.widgets.text("batch_id", "manual")
 
 catalog = dbutils.widgets.get("catalog")
+landing_path = dbutils.widgets.get("landing_path")
 start_date = dbutils.widgets.get("start_date")
 end_date = dbutils.widgets.get("end_date")
 top_n = int(dbutils.widgets.get("top_n"))
@@ -20,10 +22,11 @@ batch_id = dbutils.widgets.get("batch_id")
 from pyspark.sql import functions as F
 from src.bronze.weather_ingestion import select_top_airports, fetch_weather_for_airports, estimate_api_cost
 from src.common.save_tables import save_without_duplicates, save_errors
+from src.bronze.csv_ingestion import read_raw_csv
 
-# Elegimos los aeropuertos
-flights = spark.table(f"{catalog}.bronze.flights_raw")
-airports = spark.table(f"{catalog}.bronze.airports_raw")
+# Leemos los CSV directo de landing: así esta ingesta no depende de la carga de vuelos a bronze
+flights = read_raw_csv(spark, f"{landing_path}/kaggle/flight_delays_2015/flights.csv")
+airports = read_raw_csv(spark, f"{landing_path}/kaggle/flight_delays_2015/airports.csv")
 top_airports = select_top_airports(flights, airports, top_n).collect()
 
 # Calculamos el costo en la API antes de llamarla (fórmula del blog de Open-Meteo)
