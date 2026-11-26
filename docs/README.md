@@ -11,7 +11,7 @@ De dónde vienen los datos, por qué capas pasan y quién ejecuta y consume el p
 - **Fuentes:** el CSV de Kaggle llega al contenedor `landing` de Azure Storage; el clima y los feriados se piden a sus APIs.
 - **Capas:** todas las tablas viven en el catálogo `vuelos_dev` de Unity Catalog, con un esquema por capa, y sus archivos se guardan en el contenedor `lakehouse`.
 - **Ejecución:** el Job baja el código de GitHub y corre con el service principal `tpi-vuelos-job-sp`.
-- **Consumo:** la cátedra va a tener lectura sobre el esquema `gold`; el modo de acceso está pendiente de definir con la universidad.
+- **Consumo:** la cátedra consulta el esquema `gold` desde afuera del workspace, con un token de solo lectura y el script `scripts/consulta_gold.py`.
 
 ## 2. Job de Lakeflow
 

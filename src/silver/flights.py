@@ -83,7 +83,8 @@ def build_airport_code_mapping(codes, reference_date="2015-10-01"):
     date = F.lit(reference_date).cast("date")
     start = F.to_date("AIRPORT_START_DATE", "M/d/yyyy h:mm:ss a")
     thru = F.to_date("AIRPORT_THRU_DATE", "M/d/yyyy h:mm:ss a")
-    valid = codes.filter((start <= date) & (thru.isNull() | (thru >= date))) #empezó antes del ... Y (no terminó, O terminó después del ...)
+    # Vigente al 1/10/2015: empezó antes de esa fecha y (no terminó o terminó después)
+    valid = codes.filter((start <= date) & (thru.isNull() | (thru >= date))) 
     return valid.select(F.col("AIRPORT_ID").alias("code"),
                         F.col("AIRPORT").alias("iata_code"))
 
@@ -115,7 +116,7 @@ def add_airport_timezones(df, airports):
 
 def local_to_utc(column, timezone):
     """Convierte una hora local a UTC, según la zona horaria indicada."""
-    return F.convert_timezone(F.col(timezone), F.lit("UTC"), F.col(column)) #desde que zona, hacia que, que hora convertir
+    return F.convert_timezone(F.col(timezone), F.lit("UTC"), F.col(column)) # Argumentos: zona de origen, zona de destino y hora a convertir.
 
 
 def add_departure_utc(df):
