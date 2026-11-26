@@ -2,3 +2,6 @@ requests
 timezonefinder
 scikit-learn
 pandas
+pyspark
+pytest
+mlflow
