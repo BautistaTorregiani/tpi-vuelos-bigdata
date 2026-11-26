@@ -148,7 +148,7 @@ def utc_to_local(column, timezone):
     return F.convert_timezone(F.lit("UTC"), F.col(timezone), F.col(column))
 
 
-# Agrega la llegada planeada y la real en la hora local del aeropuerto de destino.
+
 def add_arrival_local(df):
     """Agrega la llegada planeada y la real en la hora local del destino."""
     df = df.withColumn("arrival_planned_local",
