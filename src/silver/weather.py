@@ -41,6 +41,7 @@ def deduplicate_weather(df: DataFrame) -> DataFrame:
     return df.drop("rank")
 
 
+# para chequeo de calidad
 def count_repeated_hours(df: DataFrame) -> DataFrame:
     """Horas repetidas por aeropuerto antes de deduplicar (cargas que se pisan)."""
     counts = df.groupBy("iata_code", "weather_hour_utc").count()
