@@ -80,7 +80,3 @@ log.write.mode("overwrite").saveAsTable(f"{catalog}.gold.ml_population_log")
 table = f"{catalog}.gold.ml_flight_delay_training"
 apply_comments(spark, table, TABLE_COMMENT, column_comments())
 build_dictionary_table(spark, table).write.mode("overwrite").saveAsTable(f"{catalog}.gold.ml_data_dictionary")
-
-# Resumen por partición: cantidad de filas y tasa de demora (desbalance)
-display(spark.table(table).groupBy("split").agg(F.count("*").alias("rows"),
-                                               F.avg("is_delayed").alias("delay_rate")))
